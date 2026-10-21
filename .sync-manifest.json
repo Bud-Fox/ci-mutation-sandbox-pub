@@ -1,0 +1,155 @@
+{
+  "source": "Bud-Fox/.github",
+  "source_commit": "3b9023e0f7504ff6d7871ca4f36d0e173c5bbfc0",
+  "pr_branch_prefix": "sync/agent-contract-",
+  "paths": {
+    ".claude/hooks/README.md": {
+      "lane": "pr",
+      "sha256": "7e12c5a523813feb93e09b75c751b2072448ee6ef2c27c963a7f3517cd8e117f"
+    },
+    ".claude/hooks/_agent_common.py": {
+      "lane": "pr",
+      "sha256": "b10ad6a6a575189d3f2ae076d43fc1fe0c46fab843ddf1e28a311b3e621ca427"
+    },
+    ".claude/hooks/_snapshot-common.sh": {
+      "lane": "pr",
+      "sha256": "d16d864230601802a5e8e08f6624e08b84a954dfcfa652737883d1aa2695049c"
+    },
+    ".claude/hooks/agent_model_guard.py": {
+      "lane": "pr",
+      "sha256": "bba8a791bb950f7c1b42860d0898b3040c67d0e78cb10f100de18779ee46d343"
+    },
+    ".claude/hooks/agent_token_ledger.py": {
+      "lane": "pr",
+      "sha256": "cc5bd69fa481d1156036c69da254d92c6a0946d96631a0c16fdc26211652aac9"
+    },
+    ".claude/hooks/deny-blind-staging.sh": {
+      "lane": "pr",
+      "sha256": "7989fcfb5ec9ed126e60be455294b8ca37ab5462589e75b7190fe408a1562b53"
+    },
+    ".claude/hooks/selftest.sh": {
+      "lane": "pr",
+      "sha256": "88359d8a38d93213403ad32609f5155c0cf3e025387771229588d489d493b698"
+    },
+    ".claude/hooks/session-snapshot.sh": {
+      "lane": "pr",
+      "sha256": "df64aebfce88adbda836112a8a68b0b5e5594f0b7fcdabda2029f9f1ad69963a"
+    },
+    ".claude/hooks/session_budget.py": {
+      "lane": "pr",
+      "sha256": "d9b6fa61c1b9db436a5545c8dba4230c7c8a795fd8c923ae8c124860f9c7b186"
+    },
+    ".claude/hooks/stop-uncommitted.sh": {
+      "lane": "pr",
+      "sha256": "591bd2aa4b024865bdd69c482a801fafa9cebd89c48093d6f09070f88a347aa3"
+    },
+    ".claude/settings.json": {
+      "lane": "pr",
+      "sha256": "b3596fb3e03a6256142a59bce99308c1dba84caaaabe7a9469e6719e7d35efb4"
+    },
+    ".claude/skills/MANIFEST.sha256": {
+      "lane": "push",
+      "sha256": "d571a89c9b2533bfe7f9b13e8252e656af84eefc2b096ff3d93b56724b294ac8"
+    },
+    ".claude/skills/README.md": {
+      "lane": "push",
+      "sha256": "0c47e556b49899141416a962b7133d513b7b8121789e4f18e189995bf877c6eb"
+    },
+    ".claude/skills/executing-plans/SKILL.md": {
+      "lane": "push",
+      "sha256": "05aa24a4d64c983ee2dc53db11290265650229deaa67994f73b167f7c239ff1d"
+    },
+    ".claude/skills/finishing-a-development-branch/SKILL.md": {
+      "lane": "push",
+      "sha256": "8db5a922b242dd4e1bf824cb91c13b3e8d8e8a86d6ceaf7f0774eb9cce909d65"
+    },
+    ".claude/skills/reporting/SKILL.md": {
+      "lane": "push",
+      "sha256": "fc1ad620f78da1a48ddeecb46c5b9dbbaa0a6923285786a9afddd88529dc1be2"
+    },
+    ".claude/skills/requesting-code-review/SKILL.md": {
+      "lane": "push",
+      "sha256": "d71cc01ba56d2325cf8af5f7c11837819b63ecd57de0bfdb812f7f3ff7751df8"
+    },
+    ".claude/skills/requesting-code-review/code-reviewer.md": {
+      "lane": "push",
+      "sha256": "5eca5fcfd48a50e0a526ce5ffd64bf625d6b81bb46d11795274dae451fe6ffd4"
+    },
+    ".claude/skills/subagent-driven-development/SKILL.md": {
+      "lane": "push",
+      "sha256": "9716a027e18dda511dcac9b7ce61fd5d2309488351533f73cf8f2ddfc931404c"
+    },
+    ".claude/skills/subagent-driven-development/implementer-prompt.md": {
+      "lane": "push",
+      "sha256": "81dd9d5a3fb0b09b96b5829f03b9796842f3199ef7591d1ba1c2db2a515f64d0"
+    },
+    ".claude/skills/subagent-driven-development/re-review-prompt.md": {
+      "lane": "push",
+      "sha256": "db0d5849478bc79cbde97b9b2cf0e58b50be8b8ed18464b0252c2bf27b6440a6"
+    },
+    ".claude/skills/subagent-driven-development/task-reviewer-prompt.md": {
+      "lane": "push",
+      "sha256": "eea23e33ec570c3041f40e9569fa711d61b8029f9eecf908345138aa1c6e61ab"
+    },
+    ".claude/skills/systematic-debugging/SKILL.md": {
+      "lane": "push",
+      "sha256": "df3f6451b43f4b5115b4599e17ece202fe8d8283f1ff5a40a6584ad2e44710fe"
+    },
+    ".claude/skills/test-driven-development/SKILL.md": {
+      "lane": "push",
+      "sha256": "bf1b8216e523851a411e91d429a7c1c2a173e79d88957bc78e348218d50edd54"
+    },
+    ".claude/skills/using-git-worktrees/SKILL.md": {
+      "lane": "push",
+      "sha256": "8cfb86f121269e8f7f12361e6795c4f6738828340e28964c9229d365666c9edd"
+    },
+    ".claude/skills/verification-before-completion/SKILL.md": {
+      "lane": "push",
+      "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3"
+    },
+    ".claude/skills/writing-plans/SKILL.md": {
+      "lane": "push",
+      "sha256": "c50f2ba00638c18ec56737d61911c1ef39817ed0db169e2489317970af8f1a83"
+    },
+    ".githooks/pre-commit": {
+      "lane": "pr",
+      "sha256": "45490b2c4325881dd3a94837bcca84de5a11ab98fdf9ff60df23b6b5c7d60c2a"
+    },
+    ".githooks/pre-push": {
+      "lane": "pr",
+      "sha256": "34569174c80fea69694c69d0f0c0aef66cb13f69507465e192250f462bf39700"
+    },
+    ".github/workflows/integrate.yml": {
+      "lane": "pr",
+      "sha256": "25ae100f8fe65a019ef536bb08652fb6d65fdbf421dbf46bbd6dcaa48f7dc6f6"
+    },
+    "AGENT-CONTRACT.md": {
+      "lane": "push",
+      "sha256": "82ecc6edddaa22c5221ee18f78c3e39b0618449f40ecf67f11fa320b3a9cf926"
+    },
+    "scripts/bud-lock.sh": {
+      "lane": "pr",
+      "sha256": "225a4bd428e010054ddb1b2b839d869ac201463d644e0c407164f197975ce82f"
+    },
+    "scripts/host-deploy.sh": {
+      "lane": "pr",
+      "sha256": "a7290b205b14552fc2b043f22b9bcb03cfb3ff32f5eadb1488bff9923342fd5b"
+    },
+    "scripts/install-deps.sh": {
+      "lane": "pr",
+      "sha256": "a5417a2dde32376dc28aaa43b3e276fd62c499bf5ce9bdb8e8499e5aea6bf7ae"
+    },
+    "scripts/install-hooks.sh": {
+      "lane": "pr",
+      "sha256": "57dcaf0ba06c3299dbb28b9e0320946a72fe813059c5de51ca5ff57d6effa484"
+    },
+    "scripts/preflight.sh": {
+      "lane": "pr",
+      "sha256": "e361ef447df8473185c920fae25fa68cd244b2f038a88636603787fa60b9d476"
+    },
+    "scripts/vendor-skills.sh": {
+      "lane": "pr",
+      "sha256": "f8284aeab94ac52d21b7c20bc4858c590e56f4d30a30608300216c2754bd549c"
+    }
+  }
+}

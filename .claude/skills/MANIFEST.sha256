@@ -1,0 +1,33 @@
+# obra/superpowers@master - vendored by scripts/vendor-skills.sh on 2026-08-28
+# The API and codeload hosts are blocked from agent sessions, so upstream is
+# pinned by content hash rather than by commit sha.
+# [upstream] = bytes as served. [local] = after the superpowers: prefix strip.
+# Verify both: bash scripts/vendor-skills.sh --check
+[upstream]
+48508f44bbfd7d24b029fbf3a314f3cd14c9615599059366e922f47b8dc08cf2  writing-plans/SKILL.md
+c4c3d8b628c51114cd165fb8246fe02744cd8be180032328391252e653028d9b  executing-plans/SKILL.md
+8dd1b8e698edec3700c6d89517dbe96febd3bacd3f6ea21c1a3569c62ea104b5  subagent-driven-development/SKILL.md
+808fc5717aa88ad65efff312b11c186294d3e6ee301afb584e2f86599b137787  systematic-debugging/SKILL.md
+bf1b8216e523851a411e91d429a7c1c2a173e79d88957bc78e348218d50edd54  test-driven-development/SKILL.md
+8cfb86f121269e8f7f12361e6795c4f6738828340e28964c9229d365666c9edd  using-git-worktrees/SKILL.md
+8db5a922b242dd4e1bf824cb91c13b3e8d8e8a86d6ceaf7f0774eb9cce909d65  finishing-a-development-branch/SKILL.md
+d71cc01ba56d2325cf8af5f7c11837819b63ecd57de0bfdb812f7f3ff7751df8  requesting-code-review/SKILL.md
+2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3  verification-before-completion/SKILL.md
+5eca5fcfd48a50e0a526ce5ffd64bf625d6b81bb46d11795274dae451fe6ffd4  requesting-code-review/code-reviewer.md
+81dd9d5a3fb0b09b96b5829f03b9796842f3199ef7591d1ba1c2db2a515f64d0  subagent-driven-development/implementer-prompt.md
+eea23e33ec570c3041f40e9569fa711d61b8029f9eecf908345138aa1c6e61ab  subagent-driven-development/task-reviewer-prompt.md
+db0d5849478bc79cbde97b9b2cf0e58b50be8b8ed18464b0252c2bf27b6440a6  subagent-driven-development/re-review-prompt.md
+[local]
+c50f2ba00638c18ec56737d61911c1ef39817ed0db169e2489317970af8f1a83  writing-plans/SKILL.md
+05aa24a4d64c983ee2dc53db11290265650229deaa67994f73b167f7c239ff1d  executing-plans/SKILL.md
+9716a027e18dda511dcac9b7ce61fd5d2309488351533f73cf8f2ddfc931404c  subagent-driven-development/SKILL.md
+df3f6451b43f4b5115b4599e17ece202fe8d8283f1ff5a40a6584ad2e44710fe  systematic-debugging/SKILL.md
+bf1b8216e523851a411e91d429a7c1c2a173e79d88957bc78e348218d50edd54  test-driven-development/SKILL.md
+8cfb86f121269e8f7f12361e6795c4f6738828340e28964c9229d365666c9edd  using-git-worktrees/SKILL.md
+8db5a922b242dd4e1bf824cb91c13b3e8d8e8a86d6ceaf7f0774eb9cce909d65  finishing-a-development-branch/SKILL.md
+d71cc01ba56d2325cf8af5f7c11837819b63ecd57de0bfdb812f7f3ff7751df8  requesting-code-review/SKILL.md
+2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3  verification-before-completion/SKILL.md
+5eca5fcfd48a50e0a526ce5ffd64bf625d6b81bb46d11795274dae451fe6ffd4  requesting-code-review/code-reviewer.md
+81dd9d5a3fb0b09b96b5829f03b9796842f3199ef7591d1ba1c2db2a515f64d0  subagent-driven-development/implementer-prompt.md
+eea23e33ec570c3041f40e9569fa711d61b8029f9eecf908345138aa1c6e61ab  subagent-driven-development/task-reviewer-prompt.md
+db0d5849478bc79cbde97b9b2cf0e58b50be8b8ed18464b0252c2bf27b6440a6  subagent-driven-development/re-review-prompt.md
