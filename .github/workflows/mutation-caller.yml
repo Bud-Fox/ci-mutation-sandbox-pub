@@ -1,0 +1,8 @@
+name: mutation-caller
+on:
+  workflow_dispatch:
+jobs:
+  call-preflight:
+    uses: Bud-Fox/.github/.github/workflows/_preflight.yml@main
+    with:
+      python-version: "3.12"
