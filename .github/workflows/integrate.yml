@@ -1,0 +1,183 @@
+# The caller that makes the integration chain happen. Distributed by
+# scripts/sync.sh to every repository in the account, and used by this one.
+#
+# WHAT IT IS FOR
+# --------------
+# Work that lands on a claude/** or ag/** branch and is never integrated is
+# work that does not exist. Before this file was distributed, `_auto-merge.yml` and
+# `_deploy-contabo.yml` were `workflow_call`-only and nothing anywhere invoked
+# them: AGENTS.md promised every agent that a pushed branch would open its own
+# pull request and merge itself, and in every repository that promise was false.
+# A reusable workflow with no caller is a reusable workflow that does nothing.
+#
+# HOW A REPOSITORY SAYS WHERE IT DEPLOYS
+# --------------------------------------
+# Not by editing this file. scripts/sync.sh owns it - the same bytes in every
+# repository - so a deploy target typed in here would survive exactly until the
+# next sync and then vanish, which is the worst possible way to lose a deploy.
+# The three values are repository variables instead, and the secret is a
+# repository secret:
+#
+#   gh variable set DEPLOY_ENDPOINT        --repo <owner/repo> --body 'https://.../deploy'
+#   gh variable set DEPLOY_SERVICE         --repo <owner/repo> --body '<systemd or compose name>'
+#   gh variable set DEPLOY_HEALTH_ENDPOINT --repo <owner/repo> --body 'https://.../health'
+#   gh secret   set DEPLOY_TOKEN           --repo <owner/repo>
+#
+# Unset means empty, and `_auto-merge.yml` skips its deploy job on an empty
+# endpoint - so a repository that has said nothing merges and stops, which is
+# the right default. A deploy target is the one thing that cannot be guessed
+# from here, and the failure mode of guessing is deploying to the wrong contour.
+#
+# DEPLOY_HEALTH_ENDPOINT is what makes a deploy prove itself: the deploy job
+# polls it for `deployed_git_sha` and fails unless it becomes the merge commit.
+# Without it the deploy is fired and never verified, and the log says so.
+#
+# In THIS repository all four stay unset permanently: this is where the deploy
+# machinery is written, and pointing it at a contour would mean a change to the
+# gate could redeploy production as a side effect of being merged.
+#
+# WHAT IT NEEDS FROM THE REPOSITORY'S SETTINGS
+# --------------------------------------------
+# Settings -> Actions -> General -> Workflow permissions ->
+# "Allow GitHub Actions to create and approve pull requests".
+# Without it the first step fails with "GitHub Actions is not permitted to
+# create or approve pull requests" and nothing else runs. The setting is
+# per repository; there is no account-level switch for it.
+#
+# WHAT TO EXPECT ON A `claude/**` OR `ag/**` PUSH
+# ----------------------------------------------
+# (`ag/` is Antigravity's prefix; it integrates itself like `claude/` since the
+# owner's decision of 2026-10-17 - a green preflight is the review for both.)
+# preflight runs, the pull request is opened, and then the guard decides. A
+# branch that touches the gate, the git hooks, the Claude Code hooks or the
+# deploy scripts is REFUSED, labelled `needs-owner`, and left open and
+# explained - those paths are in `_auto-merge.yml`'s `guarded-paths`, and a gate
+# that can rewrite its own rules unattended is not a gate. Everything else
+# merges itself. Refusal is the design working, not a failure.
+#
+# WHAT TO EXPECT ON A `sync/**` PUSH
+# ----------------------------------
+# scripts/sync.sh delivers executable content to a repository as a branch
+# `sync/agent-contract-<sha7>` plus a pull request it opens itself. This file
+# lists `sync/**` as a push trigger for one reason: a repository ruleset that
+# requires `preflight / preflight` accepts that check only from a push event
+# (a workflow_dispatch run does not count - measured 2026-09-24 and 2026-10-17),
+# so without the trigger the sync pull request is `blocked` for ever and
+# scripts/merge-sync-prs.sh skips it. Only the `preflight` job runs for a sync
+# branch. The `integrate` job is skipped there: the pull request already exists,
+# and _auto-merge would open a second one and guard it.
+# WHAT TO EXPECT ON A PULL REQUEST TO main
+# ----------------------------------------
+# The `control-plane` ruleset (outcrop, DNB-MCP, ru-find-cadastre,
+# GETCONTACT-API-MY) requires `preflight / preflight` on the head of every pull
+# request to main. Until 2026-10-20 no workflow here answered a `pull_request`
+# event, so a pull request from any branch outside `claude/**`, `ag/**`,
+# `sync/**` and `automerge/**` could never carry the check: the PR sat BLOCKED
+# and the only workaround was repushing the same sha under an `automerge/**`
+# branch (measured on outcrop PR #426, sha a28dd716). A check produced by a
+# `pull_request` event counts for the ruleset - only `workflow_dispatch` does
+# not - so this file now answers `pull_request: branches: [main]` too.
+#
+# ONE CHECK PER SHA, NO DOUBLES. A `pull_request` run is skipped when the head
+# branch already gets its check from a push event, because that push run
+# reported `preflight / preflight` on exactly the head sha and the ruleset
+# matches by sha:
+#   - `claude/**`, `ag/**`, `sync/**` head branches are skipped on
+#     pull_request while push-preflight is on (INTEGRATE_ON_PUSH != 'off'):
+#     the push run already exists. This is not cosmetic - sync.sh opens its
+#     pull requests with a PAT, so those PRs DO fire pull_request events, and
+#     without the skip every sync PR would run preflight twice.
+#   - INTEGRATE_MERGE=off marks a repository whose landing path is its own
+#     (outcrop: auto-merge-to-main.yml + automerge-preflight.yml). There the
+#     repository's own `automerge-preflight.yml` answers pull_request events,
+#     so this workflow stays off that lane entirely; without that clause every
+#     outcrop pull request would run preflight twice (two workflows, same
+#     merge sha, one CPU slice on the self-hosted runner).
+name: Integrate
+
+on:
+  push:
+    branches: ['claude/**', 'ag/**', 'sync/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Never two integrations of the same branch at once, and never cancelled
+# midway: a run killed between the merge call and the branch delete leaves the
+# messiest state to clean up by hand.
+concurrency:
+  group: "integrate-${{ github.ref }}"
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    # A repository whose landing path is its own sets the repository variable
+    # INTEGRATE_ON_PUSH=off and the push run does nothing. In Bud-Fox/outcrop
+    # auto-merge-to-main.yml makes the union merge and automerge-preflight.yml puts
+    # `preflight / preflight` on the exact commit that lands, so the preflight on the
+    # branch head and the integrate job below are a second, unused copy of that work
+    # (measured 2026-10-16: 5 billed minutes per push, 0 merges since 2026-10-06).
+    # workflow_dispatch is unaffected: `gh workflow run integrate.yml --ref claude/<b>`
+    # is still how the owner puts the required check on a branch head by hand.
+    # Unset or any other value = today's behaviour everywhere else.
+    #
+    # pull_request (base main) runs preflight so a PR from any branch can satisfy
+    # the ruleset - EXCEPT the two no-double cases documented above the `on:` block:
+    # head branches already covered by a push-event, and repositories whose own
+    # workflow (INTEGRATE_MERGE=off) answers pull_request checks. push keeps the
+    # INTEGRATE_ON_PUSH switch; pull_request does not need it, because a repository
+    # with its own landing path is already excluded by INTEGRATE_MERGE.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'push' && vars.INTEGRATE_ON_PUSH != 'off')
+      || (github.event_name == 'pull_request'
+          && vars.INTEGRATE_MERGE != 'off'
+          && (vars.INTEGRATE_ON_PUSH == 'off'
+              || (!startsWith(github.head_ref, 'claude/')
+                  && !startsWith(github.head_ref, 'ag/')
+                  && !startsWith(github.head_ref, 'sync/'))))
+    uses: Bud-Fox/.github/.github/workflows/_preflight.yml@main
+    with:
+      python-version: "3.12"
+      # Repository variable CI_RUNNER names a self-hosted runner label (Contabo,
+      # contabo-<repo>); unset = GitHub-hosted ubuntu-latest, as before.
+      runner: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+
+  integrate:
+    # A repository whose landing path is its own (outcrop: auto-merge-to-main.yml +
+    # automerge-preflight.yml) still needs the push-event `preflight / preflight`
+    # check on the branch head for its ruleset, but not a second merge attempt that
+    # races the real one and fails with mergeable-unknown. Setting the repository
+    # variable INTEGRATE_MERGE=off skips only this job; the preflight job above still
+    # runs. INTEGRATE_ON_PUSH cannot serve this case: it skips preflight too.
+    # Unset or any other value = today's behaviour everywhere else.
+    #
+    # A `sync/**` branch is also skipped: sync.sh has already opened its pull request,
+    # and _auto-merge would open a duplicate and guard it. The branch is pushed here
+    # only so that the push-event preflight above exists as the required check.
+    #
+    # push only: on a pull_request or workflow_dispatch event this job never
+    # runs - a pull request already exists and _auto-merge would open a second
+    # one and guard it, and dispatch is for putting the check on a head, not
+    # for merging. preflight above still runs on both events.
+    if: >-
+      github.event_name == 'push'
+      && vars.INTEGRATE_MERGE != 'off'
+      && !startsWith(github.ref, 'refs/heads/sync/')
+    needs: preflight
+    permissions:
+      contents: write
+      pull-requests: write
+      # Read-only, and load-bearing: an explicit permissions block sets every
+      # scope it does not name to none, so without these the guard cannot read
+      # this repository's own checks and refuses every merge as unreadable.
+      checks: read
+      statuses: read
+    uses: Bud-Fox/.github/.github/workflows/_auto-merge.yml@main
+    with:
+      deploy-endpoint: ${{ vars.DEPLOY_ENDPOINT }}
+      deploy-service: ${{ vars.DEPLOY_SERVICE }}
+      deploy-health-endpoint: ${{ vars.DEPLOY_HEALTH_ENDPOINT }}
+      runner: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    secrets:
+      deploy_token: ${{ secrets.DEPLOY_TOKEN }}

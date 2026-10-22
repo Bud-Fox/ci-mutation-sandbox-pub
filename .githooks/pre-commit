@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+#
+# Pre-commit gate. Armed by scripts/install-hooks.sh (git config core.hooksPath
+# .githooks), and by .claude/hooks/session-snapshot.sh when core.hooksPath is
+# still unset - a fresh clone or a fresh container is exactly where nobody
+# remembers to run the installer.
+#
+# WHAT IT REFUSES: a commit whose staged set contains a file that was already
+# dirty when the session started AND is byte-identical to what was sitting
+# there then. That combination has one meaning - the file is somebody else's
+# unfinished work and this session did not touch it. A crashed subagent's
+# leftover, or a source file corrupted on purpose for a falsification
+# experiment and never restored. `git add -A` sweeps both onto main under the
+# owner's name, _auto-merge merges it, and the deploy webhook ships it.
+#
+# WHY THIS FILE AND NOT ONLY THE PreToolUse HOOK
+# .claude/hooks/deny-blind-staging.sh reads the Bash command string, so it sees
+# `git add -A` and nothing else:
+#   * `sh -c 'git add -A'`, an alias, `eval` - all opaque to a string parser.
+#   * `bash scripts/sync.sh` hides every git command inside the script.
+#   * `git add -A && git reset -- <foreign paths>` is a CORRECT commit that any
+#     flag-based check must allow, which proves the flag was never the
+#     invariant. The staged set is.
+# git runs this file however the commit was invoked. Its one hole is
+# --no-verify, and closing that hole is what the PreToolUse hook is for.
+#
+# THE ESCAPE, AND WHY IT IS THIS SHAPE
+#   CLAUDE_COMMIT_FOREIGN=1 git commit -m '...'
+# A block with no exit gets the hook file deleted, and then nothing is
+# enforced. An env prefix is one keystroke and appears verbatim in the
+# transcript, so using it is a decision on the record rather than a silent
+# bypass. Legitimate use: the user explicitly asked for the pending changes to
+# be committed.
+#
+set -uo pipefail
+
+if [ "${CLAUDE_COMMIT_FOREIGN:-0}" = "1" ]; then
+  echo "pre-commit: CLAUDE_COMMIT_FOREIGN=1 - foreign-file check deliberately bypassed." >&2
+  exit 0
+fi
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+[ -n "$ROOT" ] || exit 0
+
+COMMON="$ROOT/.claude/hooks/_snapshot-common.sh"
+# No hook set in this repo means no baseline to judge against. Not an error.
+[ -f "$COMMON" ] || exit 0
+# shellcheck source=/dev/null
+. "$COMMON" || exit 0
+
+SNAP="$(hooks_snapshot_file "$ROOT")" || exit 0
+[ -f "$SNAP" ] || exit 0
+[ "$(hooks_snapshot_meta "$SNAP" root || true)" = "$ROOT" ] || exit 0
+
+# path -> blob hash as of session start. "-" means the path had no readable
+# content then (deleted, or a C-quoted exotic name this format cannot address);
+# "-" never equals a real blob hash, so such paths are never blocked.
+declare -A BASE=()
+while read -r h p; do
+  [ -n "${p:-}" ] || continue
+  BASE["$p"]="$h"
+done < <(hooks_snapshot_entries "$SNAP" 2>/dev/null || true)
+
+[ "${#BASE[@]}" -gt 0 ] || exit 0
+
+# An unborn branch has no HEAD to diff against; the empty tree stands in.
+if git rev-parse --verify -q HEAD >/dev/null 2>&1; then
+  DIFF_BASE=""
+else
+  DIFF_BASE="$(git hash-object -t tree /dev/null 2>/dev/null)" || exit 0
+fi
+
+FOREIGN=()
+while IFS= read -r -d '' path; do
+  base_hash="${BASE[$path]:-}"
+  [ -n "$base_hash" ] || continue
+  [ "$base_hash" != "-" ] || continue
+  # The blob that would actually be committed, not the working-tree file: a
+  # path can be staged clean and then edited again, and only what is staged is
+  # what lands on main.
+  staged_hash="$(git ls-files --stage -- "$path" 2>/dev/null | awk 'NR==1{print $2}')"
+  [ -n "$staged_hash" ] || continue
+  if [ "$staged_hash" = "$base_hash" ]; then
+    FOREIGN+=("$path")
+  fi
+done < <(git diff --cached --name-only -z ${DIFF_BASE:+"$DIFF_BASE"} 2>/dev/null)
+
+[ "${#FOREIGN[@]}" -gt 0 ] || exit 0
+
+{
+  echo "pre-commit: REFUSED - the staged set contains files this session did not author."
+  echo
+  echo "These were already dirty when the session started and are byte-identical to"
+  echo "what was sitting there then. Committing them puts somebody else's unfinished"
+  echo "work on main under your name, and this repository auto-deploys main:"
+  printf '  %s\n' "${FOREIGN[@]}"
+  echo
+  echo "Unstage them and commit only what you changed:"
+  printf '  git reset --'
+  printf ' %q' "${FOREIGN[@]}"
+  printf '\n'
+  echo
+  echo "If committing them is genuinely what was asked for, say so on the record:"
+  echo "  CLAUDE_COMMIT_FOREIGN=1 git commit ..."
+} >&2
+
+exit 1
