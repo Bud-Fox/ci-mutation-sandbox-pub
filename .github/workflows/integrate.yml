@@ -141,7 +141,7 @@ jobs:
       python-version: "3.12"
       # Repository variable CI_RUNNER names a self-hosted runner label (Contabo,
       # contabo-<repo>); unset = GitHub-hosted ubuntu-latest, as before.
-      runner: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+      runner: ${{ vars.CI_RUNNER || 'self-hosted' }}
 
   integrate:
     # A repository whose landing path is its own (outcrop: auto-merge-to-main.yml +
@@ -178,6 +178,6 @@ jobs:
       deploy-endpoint: ${{ vars.DEPLOY_ENDPOINT }}
       deploy-service: ${{ vars.DEPLOY_SERVICE }}
       deploy-health-endpoint: ${{ vars.DEPLOY_HEALTH_ENDPOINT }}
-      runner: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+      runner: ${{ vars.CI_RUNNER || 'self-hosted' }}
     secrets:
       deploy_token: ${{ secrets.DEPLOY_TOKEN }}
