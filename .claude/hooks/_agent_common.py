@@ -8,6 +8,7 @@
 человека здесь не судится (core.md, правило 4).
 """
 import datetime
+import hashlib
 import json
 import os
 import pathlib
@@ -36,19 +37,15 @@ def project_dir(payload=None):
 
 
 def ledger_dir(payload=None):
-    """`.claude/ledger/` is local state. sync.sh distributes the hooks but not
-    .gitignore, so the directory ignores itself: a `*` .gitignore is dropped on
-    first use. Without it every synced repository would show the journal as
-    untracked and the Stop hook would nag about files no commit should hold."""
-    d = project_dir(payload) / ".claude" / "ledger"
-    try:
-        d.mkdir(parents=True, exist_ok=True)
-        gi = d / ".gitignore"
-        if not gi.exists():
-            gi.write_text("*\n", encoding="utf-8")
-    except OSError:
-        pass
-    return d
+    """Return a project-isolated cache path without creating anything.
+
+    Routing hooks share the standing cache-only write permission. Historical
+    repository-local ledgers are left untouched; no implicit migration occurs.
+    """
+    base = pathlib.Path(os.environ.get("XDG_CACHE_HOME") or
+                        pathlib.Path.home() / ".cache")
+    key = hashlib.sha256(str(project_dir(payload).resolve()).encode()).hexdigest()
+    return base / "claude-code-hooks" / "agent-routing" / key
 
 
 def tier_of(model):
