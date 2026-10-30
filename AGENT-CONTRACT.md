@@ -95,7 +95,7 @@ That is worth stating here rather than leaving to be discovered.
 | `stop-uncommitted.sh` | `Stop` | Compares the tree against that baseline and blocks the turn while this session's own work is uncommitted. |
 
 None of them makes a network call. The single write outside the repository is
-the baseline, one file per repository under
+local hook state, isolated per repository under
 `${XDG_CACHE_HOME:-$HOME/.cache}/claude-code-hooks/`, and it is there because
 inside the tree it would read as untracked work and eventually be staged. That
 is the standing rule for anything added here: no network, and no write anywhere
@@ -109,12 +109,17 @@ listed here: `.claude/hooks/agent_token_ledger.py` and
 `AGENT_LEDGER_DATABASE_URL` or, when that is unset, `DATABASE_URL`, with a 4 s
 connect timeout: `agent_token_ledger.py` makes one INSERT into
 `agent_token_ledger` per finished subagent, and `session_budget.py` makes one
-SELECT from `agent_token_ledger` at session start. `agent_token_ledger.py` also
-appends one line per subagent to `.claude/ledger/agent_tokens.jsonl` inside the
-repository; `.claude/ledger/` is gitignored, so it never reads as work to stage.
-Neither hook makes any other network call or writes anywhere else. Any failure -
-no variable, no driver, a refused or slow connection, a malformed payload - exits
-0 and prints one line to stderr naming what failed; the local ledger line is kept.
+SELECT from `agent_token_ledger` at session start. Routing journals, async
+pending/done state and guard decisions are written only below
+`${XDG_CACHE_HOME:-$HOME/.cache}/claude-code-hooks/agent-routing/<project-sha256>/`,
+under the standing cache-only rule. The project key is the SHA256 of its
+resolved absolute path. Reading the local budget creates no files. Hooks do
+not write Python bytecode beside tracked scripts. Historical `.claude/ledger/`
+files are neither deleted nor automatically migrated; local totals begin in
+the new cache. No repository-local journal write is permitted. Neither hook
+makes any other network call. Any failure - no variable, no driver, a refused
+or slow connection, a malformed payload - exits 0 and prints one line to stderr
+naming what failed; a written local cache journal line is kept.
 No other hook, present or future, inherits this exception: a new hook that needs
 the network or a write outside the cache directory needs its own named entry here.
 
@@ -383,7 +388,13 @@ This is a named local write exception to the session-hook cache-only rule:
 and `BUD-LOCK.guard`; it makes no network calls.
 
 Preflight acquires/refreshes this lease before checks; pre-push runs that same
-preflight. The same owner refreshes `ts`. A fresh foreign owner is refused by
+preflight. It atomically borrows an existing same-owner lease, or acquires a
+unique invocation identity known to the parent before acquisition. It releases
+only its exact acquired identity on normal exit/failure/catchable cancellation;
+a parent-owned lease and any replacement lease remain held. `acquire-scoped`
+returns JSON `{owner,owned}`; `release-owned` never removes foreign state, even
+when expired. SIGKILL cannot run cleanup and still requires TTL recovery.
+The same owner refreshes `ts`. A fresh foreign owner is refused by
 name with its remaining TTL, even if its PID appears dead. A corrupt lease fails
 closed; inspect it rather than assuming the clone is free. At `now >= ts + ttl`
 a foreign lease is expired: takeover logs `STALE LEASE TAKEN OVER`, previous
