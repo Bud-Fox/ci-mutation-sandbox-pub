@@ -63,10 +63,41 @@ if [ ! -f "$LEASE_SCRIPT" ]; then
   echo "BUD-LOCK: missing bud-lock.sh - sync/install the complete gate; refusing unleased preflight" >&2
   exit 1
 fi
-if ! bash "$LEASE_SCRIPT" acquire; then
+# Cleanup belongs to this invocation, not to a persistent runner checkout.
+# Parent-owned leases remain held. A unique acquired identity and owner-only
+# release prevent deleting replacement leases, even when they are expired.
+WORK=""
+SCOPE=""
+SCOPE_OWNER=""
+cleanup_preflight() {
+  local rc=$? owned=1
+  trap - EXIT INT TERM
+  if [ -n "$SCOPE" ]; then
+    owned=$(printf '%s' "$SCOPE" | python3 -c 'import json,sys; print(int(json.load(sys.stdin)["owned"]))')
+  fi
+  if [ -n "$SCOPE_OWNER" ] && [ "$owned" = 1 ]; then
+      if ! BUD_LOCK_OWNER="$SCOPE_OWNER" bash "$LEASE_SCRIPT" release-owned; then
+        echo "BUD-LOCK: scoped cleanup failed; lease retained for explicit recovery/TTL" >&2
+        [ "$rc" = 0 ] && rc=1
+      fi
+  fi
+  [ -z "$WORK" ] || rm -rf "$WORK"
+  exit "$rc"
+}
+trap cleanup_preflight EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+# The parent knows its candidate identity BEFORE the helper can write a lease.
+# Cleanup therefore works even when cancellation interrupts the JSON handoff.
+nonce=$(python3 -c 'import uuid; print(uuid.uuid4().hex)') || exit 1
+SCOPE_OWNER="$BUD_LOCK_OWNER/scope-$nonce"
+if ! SCOPE=$(BUD_LOCK_SCOPE_OWNER="$SCOPE_OWNER" bash "$LEASE_SCRIPT" acquire-scoped); then
   echo "BUD-LOCK: preflight refused before checks" >&2
   exit 1
 fi
+export BUD_LOCK_OWNER
+BUD_LOCK_OWNER=$(printf '%s' "$SCOPE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["owner"],end=".")') || exit 1
+BUD_LOCK_OWNER=${BUD_LOCK_OWNER%.}
 # BUD-LOCK-END
 
 # Every stage's captured output lives here, and it goes away when the run does.
@@ -74,7 +105,6 @@ fi
 # a hand-run of the gate, or two agents in the same box - overwrote each other's
 # evidence while the first was still reading it. Same pattern as host-deploy.sh.
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
 
 if [ -t 1 ]; then B=$'\033[1m'; R=$'\033[31m'; G=$'\033[32m'; Y=$'\033[33m'; N=$'\033[0m'
 else B=""; R=""; G=""; Y=""; N=""; fi

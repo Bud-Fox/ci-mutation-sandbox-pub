@@ -12,7 +12,7 @@
 
 Источник числа: сначала таблица `agent_token_ledger` (если задан AGENT_LEDGER_DATABASE_URL
 или DATABASE_URL; одно SELECT, connect_timeout 4 с), иначе локальный
-`.claude/ledger/agent_tokens.jsonl` за текущие UTC-сутки. Отказ базы - одна громкая строка
+`${XDG_CACHE_HOME:-$HOME/.cache}/claude-code-hooks/agent-routing/<project-sha256>/agent_tokens.jsonl` за текущие UTC-сутки. Отказ базы - одна громкая строка
 в stderr и откат на локальный журнал с пометкой источника. Это поведение разрешено
 именованным исключением в AGENT-CONTRACT.md (решение владельца 2026-10-17), и только этому
 хуку и agent_token_ledger.py.
@@ -32,6 +32,7 @@ import json
 import os
 import sys
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _agent_common as C  # noqa: E402
 

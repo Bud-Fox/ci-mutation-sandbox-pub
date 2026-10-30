@@ -2,7 +2,7 @@
 """PostToolUse(Agent|Task) + SubagentStop: строка журнала токенов на каждый запуск субагента.
 
 rule:model-routing v1, `rule:token-ledger v1`. Пишет одну JSON-строку в
-`.claude/ledger/agent_tokens.jsonl` и best-effort вставляет её в таблицу
+`${XDG_CACHE_HOME:-$HOME/.cache}/claude-code-hooks/agent-routing/<project-sha256>/agent_tokens.jsonl` и best-effort вставляет её в таблицу
 `agent_token_ledger` общей базы (миграция `scripts/sql/2026-10-17_agent_token_ledger.sql`
 в ru-ubo-resolver).
 
@@ -11,7 +11,7 @@ rule:model-routing v1, `rule:token-ledger v1`. Пишет одну JSON-стро
   totalDurationMs, totalTokens, totalToolUseCount, usage:{input_tokens, output_tokens,
   cache_creation_input_tokens, cache_read_input_tokens}} - строка пишется сразу;
 - фоновый запуск отвечает `status:"async_launched"` без usage. Тогда здесь кладётся
-  отметка `.claude/ledger/pending/<agentId>.json` (тип, модель, override, начало задачи), а
+  отметка `${XDG_CACHE_HOME:-$HOME/.cache}/claude-code-hooks/agent-routing/<project-sha256>/pending/<agentId>.json` (тип, модель, override, начало задачи), а
   строку пишет SubagentStop, когда агент закончит: у него есть `agent_id`, `agent_type` и
   `agent_transcript_path`, по которому суммируется usage (по одному разу на message.id);
 - SubagentStop без отметки - это синхронный агент, его строку уже пишет PostToolUse: пропуск,
@@ -34,6 +34,7 @@ import os
 import pathlib
 import sys
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _agent_common as C  # noqa: E402
 
@@ -109,7 +110,7 @@ def db_insert(row):
     dsn = next((os.environ[k] for k in DB_ENV if os.environ.get(k)), None)
     if not dsn:
         C.loud("agent_token_ledger: в базу не записано: нет AGENT_LEDGER_DATABASE_URL/DATABASE_URL "
-               "(строка осталась в .claude/ledger/agent_tokens.jsonl)")
+               "(строка осталась в ${XDG_CACHE_HOME:-$HOME/.cache}/claude-code-hooks/agent-routing/<project-sha256>/agent_tokens.jsonl)")
         return False
     cols = ("id", "session_id", "agent_id", "started_at", "finished_at", "agent_type", "model",
             "input_tokens", "output_tokens", "total_tokens", "duration_s", "task_head", "repo",
@@ -133,13 +134,20 @@ def db_insert(row):
         return True
     except Exception as e:
         C.loud(f"agent_token_ledger: в базу не записано: {type(e).__name__}: {str(e)[:160]} "
-               f"(строка осталась в .claude/ledger/agent_tokens.jsonl)")
+               f"(строка осталась в ${XDG_CACHE_HOME:-$HOME/.cache}/claude-code-hooks/agent-routing/<project-sha256>/agent_tokens.jsonl)")
         return False
 
 
 def write_row(row, payload):
     C.append_jsonl(C.ledger_dir(payload) / "agent_tokens.jsonl", row)
     row["db"] = db_insert(row)
+
+
+def pending_path(payload, agent_id):
+    # Tool IDs are data, never filesystem paths; sessions may reuse an ID.
+    key = json.dumps([payload.get("session_id"), agent_id], ensure_ascii=False)
+    name = hashlib.sha256(key.encode()).hexdigest() + ".json"
+    return C.ledger_dir(payload) / "pending" / name
 
 
 def on_post_tool_use(payload):
@@ -155,7 +163,7 @@ def on_post_tool_use(payload):
             "override": override, "task_head": task_head(ti), "repo": repo_name(payload)}
     if tr.get("status") == "async_launched" and agent_id:
         base["launched_at"] = C.now_iso()
-        pend = C.ledger_dir(payload) / "pending" / f"{agent_id}.json"
+        pend = pending_path(payload, agent_id)
         pend.parent.mkdir(parents=True, exist_ok=True)
         pend.write_text(json.dumps(base, ensure_ascii=False), encoding="utf-8")
         return
@@ -176,7 +184,7 @@ def on_subagent_stop(payload):
     agent_id = payload.get("agent_id")
     if not agent_id:
         return
-    pend = C.ledger_dir(payload) / "pending" / f"{agent_id}.json"
+    pend = pending_path(payload, agent_id)
     if not pend.exists():
         return  # синхронный агент: строку пишет PostToolUse
     base = json.loads(pend.read_text(encoding="utf-8"))

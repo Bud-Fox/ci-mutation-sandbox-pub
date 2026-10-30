@@ -16,7 +16,7 @@
 - implementer-hard / architect / reviewer и любые другие типы -> без вывода.
 
 Каждое решение, кроме молчаливого пропуска дешёвой модели, - строка в
-`.claude/ledger/agent_guard.jsonl` (вход, ветвление, итог - core.md, правило 1).
+`${XDG_CACHE_HOME:-$HOME/.cache}/claude-code-hooks/agent-routing/<project-sha256>/agent_guard.jsonl` (вход, ветвление, итог - core.md, правило 1).
 
 Хук не имеет права уронить сессию: любой сбой - одна строка в stderr и exit 0 (пропуск).
 
@@ -29,6 +29,7 @@ import json
 import os
 import sys
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _agent_common as C  # noqa: E402
 

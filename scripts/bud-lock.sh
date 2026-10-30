@@ -59,6 +59,11 @@
 # -----
 #   scripts/bud-lock.sh acquire            take or refresh the lease (the gate
 #                                          calls this as its first stage)
+#   scripts/bud-lock.sh acquire-scoped     JSON {owner,owned}; borrow an existing
+#                                          own lease, otherwise acquire a unique
+#                                          identity for automatic cleanup
+#   scripts/bud-lock.sh release-owned      release only this exact owner; never
+#                                          remove even an expired foreign lease
 #   scripts/bud-lock.sh check              refuse (rc 1) if a foreign live
 #                                          session holds the clone; write nothing
 #   scripts/bud-lock.sh release [--force]  drop own/stale lease; a foreign live
@@ -220,6 +225,53 @@ classify() {
 
 cmd="${1:-}"
 case "$cmd" in
+  acquire-scoped)
+    # Decide ownership under the same mutex as acquisition. A fresh unique
+    # identity fences cleanup against replacement by another scoped run.
+    guard_take || die2 "another process holds $GUARD for too long"
+    read_lease
+    classify; rc=$?
+    case $rc in
+      1) refuse "$O" "$(( $(now) - T ))" "$L" "acquire-scoped"; exit 1 ;;
+      4) refuse_corrupt "acquire-scoped"; exit 1 ;;
+    esac
+    owned=true
+    if [ "$STATE" = "OK" ] && [ "$O" = "$OWNER" ]; then
+      owned=false
+    else
+      if [ "$rc" = 2 ]; then
+        echo "BUD-LOCK: STALE LEASE TAKEN OVER (not silent) - $WHY" >&2
+      fi
+      if [ -n "${BUD_LOCK_SCOPE_OWNER:-}" ]; then
+        OWNER="$BUD_LOCK_SCOPE_OWNER"
+        case "$OWNER" in
+          *$'\x1f'*) die2 "BUD_LOCK_SCOPE_OWNER contains the reserved field separator" ;;
+        esac
+      else
+        nonce=$(python3 -c 'import uuid; print(uuid.uuid4().hex)') || die2 "cannot create scoped identity"
+        OWNER="$OWNER/scope-$nonce"
+      fi
+    fi
+    write_lease
+    echo "BUD-LOCK: scoped lease acquired by $OWNER (owned=$owned)" >&2
+    python3 - "$OWNER" "$owned" <<'PY'
+import json, sys
+print(json.dumps({"owner": sys.argv[1], "owned": sys.argv[2] == "true"}))
+PY
+    ;;
+  release-owned)
+    # Automatic cleanup MUST NOT treat expired foreign state as its own.
+    guard_take || die2 "another process holds $GUARD for too long"
+    read_lease
+    [ "$STATE" = FREE ] && exit 0
+    if [ "$STATE" = OK ] && [ "$O" = "$OWNER" ]; then
+      rm -f "$LOCK" || die2 "cannot remove $LOCK"
+      echo "BUD-LOCK: released scoped lease ($OWNER)"
+      exit 0
+    fi
+    echo "BUD-LOCK: cleanup refused: current lease is not owned by $OWNER" >&2
+    exit 1
+    ;;
   acquire)
     guard_take || { echo "bud-lock: another process holds $GUARD for too long" >&2; exit 2; }
     read_lease
@@ -287,7 +339,7 @@ case "$cmd" in
     exit 0
     ;;
   *)
-    echo "usage: bud-lock.sh {acquire|check|release [--force]|status}" >&2
+    echo "usage: bud-lock.sh {acquire|acquire-scoped|check|release [--force]|release-owned|status}" >&2
     echo "  env: BUD_LOCK_OWNER=<session id>  BUD_LOCK_TTL=<positive integer seconds>" >&2
     exit 2
     ;;
