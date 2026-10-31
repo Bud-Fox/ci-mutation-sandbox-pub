@@ -1,6 +1,6 @@
 {
   "source": "Bud-Fox/.github",
-  "source_commit": "6728e95a07985bcaef200ce14252667caea8f936",
+  "source_commit": "ab9c49a725f9312d13d2f9ce01dc015add2e9b1c",
   "pr_branch_prefix": "sync/agent-contract-",
   "paths": {
     ".claude/hooks/README.md": {
