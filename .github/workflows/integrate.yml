@@ -181,3 +181,22 @@ jobs:
       runner: ${{ vars.CI_RUNNER || 'self-hosted' }}
     secrets:
       deploy_token: ${{ secrets.DEPLOY_TOKEN }}
+
+  skip:
+    # PR runs triggered by an auto-merge (opened with GITHUB_TOKEN) are
+    # evaluated only after that run finishes, by which point the pull request
+    # is already merged and closed. A run whose every job is skipped is then
+    # recorded as a failure with zero jobs. This job gives that run a job that
+    # succeeds, so the redundant pull_request run ends green instead of red.
+    # It runs only in the cases preflight is skipped for (claude/ag/sync head
+    # branches already covered by a push run, or INTEGRATE_ON_PUSH=off).
+    if: >-
+      github.event_name == 'pull_request'
+      && vars.INTEGRATE_MERGE != 'off'
+      && vars.INTEGRATE_ON_PUSH != 'off'
+      && (startsWith(github.head_ref, 'claude/')
+          || startsWith(github.head_ref, 'ag/')
+          || startsWith(github.head_ref, 'sync/'))
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "skipped: head branch already covered by the push run"
