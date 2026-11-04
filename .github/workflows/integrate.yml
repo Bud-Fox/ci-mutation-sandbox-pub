@@ -199,4 +199,5 @@ jobs:
           || startsWith(github.head_ref, 'sync/'))
     runs-on: ubuntu-latest
     steps:
-      - run: echo "skipped: head branch already covered by the push run"
+      - run: |
+          echo "skipped: head branch already covered by the push run"
