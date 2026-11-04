@@ -1,6 +1,6 @@
 {
   "source": "Bud-Fox/.github",
-  "source_commit": "97a2a8af97454e2dfc02e13cff55ffb6ef236b6e",
+  "source_commit": "60d4cc8f29898cad70d346e2180d1f5a4d5278f1",
   "pr_branch_prefix": "sync/agent-contract-",
   "paths": {
     ".claude/hooks/README.md": {
@@ -121,7 +121,7 @@
     },
     ".github/workflows/integrate.yml": {
       "lane": "pr",
-      "sha256": "6aa005faa85c7de01f9c55ccb948ef3c77311a2590a1faebf2e44ee4a574db23"
+      "sha256": "72545b70b4940f4181096f504e8134082962c1d8039657ead7228c1dfc57d64b"
     },
     "AGENT-CONTRACT.md": {
       "lane": "push",
